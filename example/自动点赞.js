@@ -27,7 +27,7 @@ async function update() {
   console.log('[自动点赞][检查更新完毕]')
 }
 
-update()
+await update()
 
 export class zdz extends plugin {
   constructor(e) {
