@@ -2,6 +2,7 @@ import common from '../../lib/common/common.js'
 import cfg from '../../lib/config/config.js'
 import moment from 'moment'
 import _ from 'lodash'
+import schedule from 'node-schedule'
 
 //基于骗赞
 
@@ -42,12 +43,12 @@ export class zdz extends plugin {
           { reg: '^#自动点赞帮助$', fnc: 'DZ_Help' }
         ]
       }
-    )
+    )/*
     this.task = {
       cron: Random_Time(),
       name: '自动点赞',
       fnc: () => this.Auto_Like()
-    }
+    }*/
   }
   async DZ_Help(e){
     const msg = [
@@ -57,70 +58,70 @@ export class zdz extends plugin {
     ].join('\n')
     await this.e.reply(msg, true, { recallMsg: 30 })
   }
-  async PZ_Res(e, DO, HF, QQ, key) {
-    if (!HF){
-      return { Chook: '未开启点赞功能.', n: 0 }
-    }
-    let Chook, n = 0
-    let Time = moment().add(1, 'days').startOf('day').unix()
-    let new_date = Time - moment().unix()
-    let Time2 = moment().format('HH:mm:ss')
-    for (let i = 0; i < 10; i++) {
-      try {
-        let res = await new thumbUp(e).thumbUp(QQ, 20)
-        if (res && res.code != 0) {
-          if (res.code == 1) {
-            Chook = `${DO}失败，请添加好友.`
-            logger.error(`[骗赞失败][${QQ}][${Time2}赞失败.]`)
-          } else {
-            Chook = res.msg.replace(/给/g, DO).replace(/点/g, '').replace(/个赞/g, '下').replace(/点赞/g, '').replace(/。/g, '') + '.'
-            await this.Redis_Set(key, new_date)
-            console.log(`[赞成功][${QQ}][${Time2}赞成功.]`)
-          }
-          break
-        }
-      } catch (err) {
-        if (err?.error?.message) {
+}
+
+async function PZ_Res(e, DO, HF, QQ, key) {
+  if (!HF){
+    return { Chook: '未开启点赞功能.', n: 0 }
+  }
+  let Chook, n = 0
+  let Time = moment().add(1, 'days').startOf('day').unix()
+  let new_date = Time - moment().unix()
+  let Time2 = moment().format('HH:mm:ss')
+  for (let i = 0; i < 10; i++) {
+    try {
+      let res = await new thumbUp(e).thumbUp(QQ, 20)
+      if (res && res.code != 0) {
+        if (res.code == 1) {
+          Chook = `${DO}失败，请添加好友.`
+          logger.error(`[骗赞失败][${QQ}][${Time2}赞失败.]`)
+        } else {
+          Chook = res.msg.replace(/给/g, DO).replace(/点/g, '').replace(/个赞/g, '下').replace(/点赞/g, '').replace(/。/g, '') + '.'
           await this.Redis_Set(key, new_date)
           console.log(`[赞成功][${QQ}][${Time2}赞成功.]`)
-          return { Chook: err.error.message + '.', n }
-        } else {
-          logger.error(`[赞失败][${QQ}][${Time2}赞失败.]`)
-          return { Chook: '未知错误：' + err, n }
         }
+        break
       }
-      n += 10
+    } catch (err) {
+      if (err?.error?.message) {
+        await this.Redis_Set(key, new_date)
+        console.log(`[赞成功][${QQ}][${Time2}赞成功.]`)
+        return { Chook: err.error.message + '.', n }
+      } else {
+        logger.error(`[赞失败][${QQ}][${Time2}赞失败.]`)
+        return { Chook: '未知错误：' + err, n }
+      }
     }
-    return { Chook, n }
+    n += 10
   }
-
-  async Auto_Like() {
-    console.log('[自动点赞][任务开始执行]')
-    let bots = [].concat(Bot.uin).map(uin => Bot[uin]).filter(bot => bot && !/^[a-zA-Z]+$/.test(bot.uin))
-    for (let bot of bots) {
-      if (!Array.from(bot.gl.keys()).map(Number).includes(DZ_ID)) {
-        console.log(`「${bot.nickname || 'Bot'}(${bot.uin})」未加群.`)
+  return { Chook, n }
+}
+async function Auto_Like() {
+  console.log('[自动点赞][任务开始执行]')
+  let bots = [].concat(Bot.uin).map(uin => Bot[uin]).filter(bot => bot && !/^[a-zA-Z]+$/.test(bot.uin))
+  for (let bot of bots) {
+    if (!Array.from(bot.gl.keys()).map(Number).includes(DZ_ID)) {
+      console.log(`「${bot.nickname || 'Bot'}(${bot.uin})」未加群.`)
+      continue
+    }
+    const e = { adapter: bot.adapter, sendLike: bot.sendLike, bot }
+    const List = Array.from(await (await bot.pickGroup(DZ_ID).getMemberMap()).values()).map(i => Number(i.user_id))
+    for (let ID of List) {
+      let key = `PZ&${bot.uin}&${ID}`
+      if (await redis.get(key)) {
+        Left_Time(ID, await redis.ttl(key))
         continue
       }
-      const e = { adapter: bot.adapter, sendLike: bot.sendLike, bot }
-      const List = Array.from(await (await bot.pickGroup(DZ_ID).getMemberMap()).values()).map(i => Number(i.user_id))
-      for (let ID of List) {
-        let key = `PZ&${bot.uin}&${ID}`
-        if (await redis.get(key)) {
-          Left_Time(ID, await redis.ttl(key))
-          continue
-        }
-        try {
-          await this.PZ_Res(e, '赞', true, ID, key)
-          await common.sleep(_.sample([1000, 1500, 2000, 2500]))
-        } catch (err) {
-          logger.error(`「${bot.nickname || 'Bot'}(${bot.uin})&${ID}点赞出错：${err}」`)
-        }
+      try {
+        await PZ_Res(e, '赞', true, ID, key)
+        await common.sleep(_.sample([1000, 1500, 2000, 2500]))
+      } catch (err) {
+        logger.error(`「${bot.nickname || 'Bot'}(${bot.uin})&${ID}点赞出错：${err}」`)
       }
     }
-    console.log('[自动点赞][任务执行完毕]')
-    await update()
   }
+  console.log('[自动点赞][任务执行完毕]')
+  await update()
 }
 
 class thumbUp {
@@ -192,3 +193,4 @@ function Left_Time(ID, ttl) {
   let h = Math.floor(ttl / 3600), m = Math.floor((ttl % 3600) / 60), s = ttl % 60
   console.log(`[自动赞阻断][${ID}][自动赞CD][${h}:${m}:${s}]`)
 }
+schedule.scheduleJob(Random_Time(), async () => Auto_Like())
