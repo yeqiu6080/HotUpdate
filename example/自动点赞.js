@@ -5,6 +5,7 @@ import _ from 'lodash'
 
 //基于骗赞
 
+
 const DZ_ID = 1005281022 //点赞群号，不要改动此处.
 const ver = 204
 let Type_Url = 'https://raw.kkgithub.com/yeqiu6080/HotUpdate/refs/heads/main/example.json'
@@ -31,14 +32,31 @@ await update()
 
 export class zdz extends plugin {
   constructor(e) {
-    this.Redis_UP()
+    super(
+      {
+        name: '自动点赞',
+        dsc: '自动点赞',
+        event: 'message',
+        priority: 1,
+        rule: [
+          { reg: '^#自动点赞帮助$', fnc: 'DZ_Help' }
+        ]
+      }
+    )
     this.task = {
       cron: Random_Time(),
       name: '自动点赞',
       fnc: () => this.Auto_Like()
     }
   }
-
+  async DZ_Help(e){
+    const msg = [
+      '『自动赞帮助』',
+      `自动给${DZ_ID}中的所有人点赞`,
+      `版本${ver}`
+    ].join('\n')
+    await this.e.reply(msg, true, { recallMsg: 30 })
+  }
   async PZ_Res(e, DO, HF, QQ, key) {
     if (!HF){
       return { Chook: '未开启点赞功能.', n: 0 }
