@@ -7,8 +7,8 @@ import _ from 'lodash'
 
 const DZ_ID = 1005281022 //点赞群号，不要改动此处.
 const ver = 204
-let Type_Url = 'https://raw.github.com/yeqiu6080/HotUpdate/refs/heads/main/example.json'
-let Down_Url = 'https://raw.github.com/yeqiu6080/HotUpdate/refs/heads/main/example/自动点赞.js'
+let Type_Url = 'https://raw.kkgithub.com/yeqiu6080/HotUpdate/refs/heads/main/example.json'
+let Down_Url = 'https://raw.kkgithub.com/yeqiu6080/HotUpdate/refs/heads/main/example/自动点赞.js'
 //更新
 async function update() {
   try {
